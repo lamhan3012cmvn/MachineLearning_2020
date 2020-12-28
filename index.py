@@ -1,4 +1,5 @@
 # In[1]: Library and data loading
+from sklearn import svm
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.linear_model import LogisticRegression
 import numpy as np  # linear algebra
@@ -363,7 +364,7 @@ sgd_clf_acc = cross_val_score(
     sgd_clf, X_train, y_train, cv=3, scoring="accuracy")
 joblib.dump(sgd_clf, 'saved_var/SGDClassifier')
 joblib.dump(sgd_clf_acc, 'saved_var/SGDClassifier_acc')
-print(sgd_clf_acc)
+print("SGDClassifier: ", sgd_clf_acc)
 # plt_modelFeatureImportant(sgd_clf)
 
 # RandomForestClassifier
@@ -377,7 +378,7 @@ print("RandomForestClassifier")
 # joblib.dump(forest_acc, 'saved_var/RandomForestClassifier_acc')
 rdf_clf = joblib.load('saved_var/RandomForestClassifier')
 rdf_clf_acc = joblib.load('saved_var/RandomForestClassifier_acc')
-print(rdf_clf_acc)
+print("RandomForestClassifier: ", rdf_clf_acc)
 # plt_modelFeatureImportant(forest_acc)
 
 # LinearRegression
@@ -399,7 +400,22 @@ print("Logistic regression")
 # joblib.dump(logisticRegresstion_acc, 'saved_var/LogisticRegresstion_acc')
 logisticRegresstion = joblib.load('saved_var/logisticRegresstion')
 logisticRegresstion_acc = joblib.load('saved_var/LogisticRegresstion_acc')
-print(logisticRegresstion_acc)
+print("Logistic regression: ", logisticRegresstion_acc)
+
+
+print("SVM Poly CLF")
+poly_clf = joblib.load('saved_var/poly_clf')
+# poly_clf = svm.SVC(kernel='poly', degree=2, C=10,
+#                    decision_function_shape='ovo').fit(X_train, y_train)
+# joblib.dump(poly_clf, 'saved_var/Poly_clf')
+
+# Evaluate
+# poly_clf_acc = cross_val_score(
+#     poly_clf, X_train, y_train, cv=3, scoring="accuracy")
+poly_clf_acc = joblib.load('saved_var/Poly_clf_acc')
+
+# joblib.dump(poly_clf_acc, 'saved_var/Poly_clf_acc')
+print("SVM Poly: ", poly_clf_acc)
 
 # # In[8] Tuning
 # # In[8.1] Evaluating a Classification Model.
