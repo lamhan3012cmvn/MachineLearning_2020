@@ -417,343 +417,372 @@ poly_clf_acc = joblib.load('saved_var/Poly_clf_acc')
 # joblib.dump(poly_clf_acc, 'saved_var/Poly_clf_acc')
 print("SVM Poly: ", poly_clf_acc)
 
-# # In[8] Tuning
-# # In[8.1] Evaluating a Classification Model.
-# def evalClassModel(model, y_test, y_pred_class, plot=False):
-#     #Classification accuracy: percentage of correct predictions
-#     # calculate accuracy
-#     print('Accuracy:', metrics.accuracy_score(y_test, y_pred_class))
-
-#     #Null accuracy: accuracy that could be achieved by always predicting the most frequent class
-#     # examine the class distribution of the testing set (using a Pandas Series method)
-#     print('Null accuracy:\n', y_test.value_counts())
-
-#     # calculate the percentage of ones
-#     print('Percentage of ones:', y_test.mean())
-
-#     # calculate the percentage of zeros
-#     print('Percentage of zeros:',1 - y_test.mean())
+# In[8] Tuning
+# In[8.1] Evaluating a Classification Model.
+
+
+def evalClassModel(model, y_test, y_pred_class, plot=False):
+    # Classification accuracy: percentage of correct predictions
+    # calculate accuracy
+    print('Accuracy:', metrics.accuracy_score(y_test, y_pred_class))
+
+    # Null accuracy: accuracy that could be achieved by always predicting the most frequent class
+    # examine the class distribution of the testing set (using a Pandas Series method)
+    print('Null accuracy:\n', y_test.value_counts())
+
+    # calculate the percentage of ones
+    print('Percentage of ones:', y_test.mean())
+
+    # calculate the percentage of zeros
+    print('Percentage of zeros:', 1 - y_test.mean())
+
+    # Comparing the true and predicted response values
+    print('True:', y_test.values[0:25])
+    print('Pred:', y_pred_class[0:25])
+
+    # Conclusion:
+    # Classification accuracy is the easiest classification metric to understand
+    # But, it does not tell you the underlying distribution of response values
+    # And, it does not tell you what "types" of errors your classifier is making
+
+    # Confusion matrix
+    # save confusion matrix and slice into four pieces
+    confusion = metrics.confusion_matrix(y_test, y_pred_class)
+    #[row, column]
+    TP = confusion[1, 1]
+    TN = confusion[0, 0]
+    FP = confusion[0, 1]
+    FN = confusion[1, 0]
+
+    # visualize Confusion Matrix
+    sns.heatmap(confusion, annot=True, fmt="d")
+    plt.title('Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.show()
+
+    # Metrics computed from a confusion matrix
+    # Classification Accuracy: Overall, how often is the classifier correct?
+    accuracy = metrics.accuracy_score(y_test, y_pred_class)
+    print('Classification Accuracy:', accuracy)
+
+    # Classification Error: Overall, how often is the classifier incorrect?
+    print('Classification Error:', 1 -
+          metrics.accuracy_score(y_test, y_pred_class))
+
+    # False Positive Rate: When the actual value is negative, how often is the prediction incorrect?
+    false_positive_rate = FP / float(TN + FP)
+    print('False Positive Rate:', false_positive_rate)
+
+    # Precision: When a positive value is predicted, how often is the prediction correct?
+    print('Precision:', metrics.precision_score(y_test, y_pred_class))
+
+    # IMPORTANT: first argument is true values, second argument is predicted probabilities
+    print('AUC Score:', metrics.roc_auc_score(y_test, y_pred_class))
+
+    # calculate cross-validated AUC
+    print('Cross-validated AUC:', cross_val_score(model,
+                                                  X, y, cv=10, scoring='roc_auc').mean())
+
+    ##########################################
+    # Adjusting the classification threshold
+    # ##########################################
+    # # print the first 10 predicted responses
+    # # 1D array (vector) of binary values (0, 1)
+    # print('First 10 predicted responses:\n', model.predict(X_test)[0:10])
+
+    # # print the first 10 predicted probabilities of class membership
+    # print('First 10 predicted probabilities of class members:\n',
+    #       model.predict_proba(X_test)[0:10])
+
+    # # print the first 10 predicted probabilities for class 1
+    # model.predict_proba(X_test)[0:10, 1]
+
+    # # store the predicted probabilities for class 1
+    # y_pred_prob = model.predict_proba(X_test)[:, 1]
+
+    if plot == True:
+        # histogram of predicted probabilities
+        # adjust the font size
+        plt.rcParams['font.size'] = 12
+        # 8 bins
+        plt.hist(y_pred_prob, bins=8)
+
+        # x-axis limit from 0 to 1
+        plt.xlim(0, 1)
+        plt.title('Histogram of predicted probabilities')
+        plt.xlabel('Predicted probability of treatment')
+        plt.ylabel('Frequency')
+
+    # # predict treatment if the predicted probability is greater than 0.3
+    # # it will return 1 for all values above 0.3 and 0 otherwise
+    # # results are 2D so we slice out the first column
+    # y_pred_prob = y_pred_prob.reshape(-1, 1)
+    # y_pred_class = binarize(y_pred_prob, 0.3)[0]
+
+    # # print the first 10 predicted probabilities
+    # print('First 10 predicted probabilities:\n', y_pred_prob[0:10])
+
+    ##########################################
+    # ROC Curves and Area Under the Curve (AUC)
+    ##########################################
+
+    # Question: Wouldn't it be nice if we could see how sensitivity and specificity are affected by various thresholds, without actually changing the threshold?
+    # Answer: Plot the ROC curve!
+
+    # AUC is the percentage of the ROC plot that is underneath the curve
+    # Higher value = better classifier
+    roc_auc = metrics.roc_auc_score(y_test, y_pred_prob)
+
+    # IMPORTANT: first argument is true values, second argument is predicted probabilities
+    # we pass y_test and y_pred_prob
+    # we do not use y_pred_class, because it will give incorrect results without generating an error
+    # roc_curve returns 3 objects fpr, tpr, thresholds
+    # fpr: false positive rate
+    # tpr: true positive rate
+    fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred_prob)
+    if plot == True:
+        plt.figure()
+
+        plt.plot(fpr, tpr, color='darkorange',
+                 label='ROC curve (area = %0.2f)' % roc_auc)
+        plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.0])
+        plt.rcParams['font.size'] = 12
+        plt.title('ROC curve for treatment classifier')
+        plt.xlabel('False Positive Rate (1 - Specificity)')
+        plt.ylabel('True Positive Rate (Sensitivity)')
+        plt.legend(loc="lower right")
+        plt.show()
+
+    # define a function that accepts a threshold and prints sensitivity and specificity
+    def evaluate_threshold(threshold):
+        # Sensitivity: When the actual value is positive, how often is the prediction correct?
+        # Specificity: When the actual value is negative, how often is the prediction correct?print('Sensitivity for ' + str(threshold) + ' :', tpr[thresholds > threshold][-1])
+        print('Specificity for ' + str(threshold) +
+              ' :', 1 - fpr[thresholds > threshold][-1])
+
+    # One way of setting threshold
+    predict_mine = np.where(y_pred_prob > 0.50, 1, 0)
+    confusion = metrics.confusion_matrix(y_test, predict_mine)
+    print(confusion)
+
+    return accuracy
+
+
+# Out[8.1]
+# In[8.2] Tuning with cross validation score
+##########################################
+# Tuning with cross validation score
+##########################################
+def tuningCV(knn):
+
+    # search for an optimal value of K for KNN
+    k_range = list(range(1, 31))
+    k_scores = []
+    for k in k_range:
+        knn = KNeighborsClassifier(n_neighbors=k)
+        scores = cross_val_score(knn, X, y, cv=10, scoring='accuracy')
+        k_scores.append(scores.mean())
+    print(k_scores)
+    # plot the value of K for KNN (x-axis) versus the cross-validated accuracy (y-axis)
+    plt.plot(k_range, k_scores)
+    plt.xlabel('Value of K for KNN')
+    plt.ylabel('Cross-Validated Accuracy')
+    plt.show()
+# Out[8.2]
+# In[8.3] Tuning with GridSearchCV
+
+
+def tuningGridSerach(knn):
+    # More efficient parameter tuning using GridSearchCV
+    # define the parameter values that should be searched
+    k_range = list(range(1, 31))
+    print(k_range)
+
+    # create a parameter grid: map the parameter names to the values that should be searched
+    param_grid = dict(n_neighbors=k_range)
+    print(param_grid)
+
+    # instantiate the grid
+    grid = GridSearchCV(knn, param_grid, cv=10, scoring='accuracy')
+
+    # fit the grid with data
+    grid.fit(X, y)
+
+    # # view the complete results (list of named tuples)
+    # grid.grid_scores_
+
+    # # examine the first tuple
+    # print(grid.grid_scores_[0].parameters)
+    # print(grid.grid_scores_[0].cv_validation_scores)
+    # print(grid.grid_scores_[0].mean_validation_score)
+
+    # # create a list of the mean scores only
+    # grid_mean_scores = [result.mean_validation_score for result in grid.grid_scores_]
+    # print(grid_mean_scores)
+
+    # plot the results
+    plt.plot(k_range, grid_mean_scores)
+    plt.xlabel('Value of K for KNN')
+    plt.ylabel('Cross-Validated Accuracy')
+    plt.show()
+
+    # examine the best model
+    print('GridSearch best score', grid.best_score_)
+    print('GridSearch best params', grid.best_params_)
+    print('GridSearch best estimator', grid.best_estimator_)
+# Out[8.3]
+# In[8.4] Tuning with RandomizedSearchCV
+
+
+def tuningRandomizedSearchCV(model, param_dist):
+    rand = RandomizedSearchCV(model, param_dist, cv=5,
+                              scoring='accuracy', n_iter=10, random_state=5)
+    rand.fit(X, y)
+    best_scores = []
+    for _ in range(20):
+        rand = RandomizedSearchCV(
+            model, param_dist, cv=5, scoring='accuracy', n_iter=10)
+        rand.fit(X, y)
+        best_scores.append(round(rand.best_score_, 3))
+    print(best_scores)
+
+# # Out[9.2]
+# # In[9.3] Decision Tree classifier
+
+
+def treeClassifier():
+    # Calculating the best parameters
+    tree = DecisionTreeClassifier()
+    featuresSize = feature_cols.__len__()
+    param_dist = {"max_depth": [3, None],
+                  "max_features": randint(1, featuresSize),
+                  "min_samples_split": randint(2, 9),
+                  "min_samples_leaf": randint(1, 9),
+                  "criterion": ["gini", "entropy"]}
+    tuningRandomizedSearchCV(tree, param_dist)
 
-#     #Comparing the true and predicted response values
-#     print('True:', y_test.values[0:25])
-#     print('Pred:', y_pred_class[0:25])
-
-#     #Conclusion:
-#     #Classification accuracy is the easiest classification metric to understand
-#     #But, it does not tell you the underlying distribution of response values
-#     #And, it does not tell you what "types" of errors your classifier is making
-
-#     #Confusion matrix
-#     # save confusion matrix and slice into four pieces
-#     confusion = metrics.confusion_matrix(y_test, y_pred_class)
-#     #[row, column]
-#     TP = confusion[1, 1]
-#     TN = confusion[0, 0]
-#     FP = confusion[0, 1]
-#     FN = confusion[1, 0]
-
-#     # visualize Confusion Matrix
-#     sns.heatmap(confusion,annot=True,fmt="d")
-#     plt.title('Confusion Matrix')
-#     plt.xlabel('Predicted')
-#     plt.ylabel('Actual')
-#     plt.show()
-
-#     #Metrics computed from a confusion matrix
-#     #Classification Accuracy: Overall, how often is the classifier correct?
-#     accuracy = metrics.accuracy_score(y_test, y_pred_class)
-#     print('Classification Accuracy:', accuracy)
-
-#     #Classification Error: Overall, how often is the classifier incorrect?
-#     print('Classification Error:', 1 - metrics.accuracy_score(y_test, y_pred_class))
-
-#     #False Positive Rate: When the actual value is negative, how often is the prediction incorrect?
-#     false_positive_rate = FP / float(TN + FP)
-#     print('False Positive Rate:', false_positive_rate)
-
-#     #Precision: When a positive value is predicted, how often is the prediction correct?
-#     print('Precision:', metrics.precision_score(y_test, y_pred_class))
-
-
-#     # IMPORTANT: first argument is true values, second argument is predicted probabilities
-#     print('AUC Score:', metrics.roc_auc_score(y_test, y_pred_class))
-
-#     # calculate cross-validated AUC
-#     print('Cross-validated AUC:', cross_val_score(model, X, y, cv=10, scoring='roc_auc').mean())
-
-#     ##########################################
-#     #Adjusting the classification threshold
-#     ##########################################
-#     # print the first 10 predicted responses
-#     # 1D array (vector) of binary values (0, 1)
-#     print('First 10 predicted responses:\n', model.predict(X_test)[0:10])
-
-#     # print the first 10 predicted probabilities of class membership
-#     print('First 10 predicted probabilities of class members:\n', model.predict_proba(X_test)[0:10])
-
-#     # print the first 10 predicted probabilities for class 1
-#     model.predict_proba(X_test)[0:10, 1]
-
-#     # store the predicted probabilities for class 1
-#     y_pred_prob = model.predict_proba(X_test)[:, 1]
-
-#     if plot == True:
-#         # histogram of predicted probabilities
-#         # adjust the font size
-#         plt.rcParams['font.size'] = 12
-#         # 8 bins
-#         plt.hist(y_pred_prob, bins=8)
-
-#         # x-axis limit from 0 to 1
-#         plt.xlim(0,1)
-#         plt.title('Histogram of predicted probabilities')
-#         plt.xlabel('Predicted probability of treatment')
-#         plt.ylabel('Frequency')
-
-
-#     # predict treatment if the predicted probability is greater than 0.3
-#     # it will return 1 for all values above 0.3 and 0 otherwise
-#     # results are 2D so we slice out the first column
-#     y_pred_prob = y_pred_prob.reshape(-1,1)
-#     y_pred_class = binarize(y_pred_prob, 0.3)[0]
-
-#     # print the first 10 predicted probabilities
-#     print('First 10 predicted probabilities:\n', y_pred_prob[0:10])
-
-#     ##########################################
-#     #ROC Curves and Area Under the Curve (AUC)
-#     ##########################################
-
-#     #Question: Wouldn't it be nice if we could see how sensitivity and specificity are affected by various thresholds, without actually changing the threshold?
-#     #Answer: Plot the ROC curve!
-
-
-#     #AUC is the percentage of the ROC plot that is underneath the curve
-#     #Higher value = better classifier
-#     roc_auc = metrics.roc_auc_score(y_test, y_pred_prob)
-
-
-#     # IMPORTANT: first argument is true values, second argument is predicted probabilities
-#     # we pass y_test and y_pred_prob
-#     # we do not use y_pred_class, because it will give incorrect results without generating an error
-#     # roc_curve returns 3 objects fpr, tpr, thresholds
-#     # fpr: false positive rate
-#     # tpr: true positive rate
-#     fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred_prob)
-#     if plot == True:
-#         plt.figure()
-
-#         plt.plot(fpr, tpr, color='darkorange', label='ROC curve (area = %0.2f)' % roc_auc)
-#         plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
-#         plt.xlim([0.0, 1.0])
-#         plt.ylim([0.0, 1.0])
-#         plt.rcParams['font.size'] = 12
-#         plt.title('ROC curve for treatment classifier')
-#         plt.xlabel('False Positive Rate (1 - Specificity)')
-#         plt.ylabel('True Positive Rate (Sensitivity)')
-#         plt.legend(loc="lower right")
-#         plt.show()
-
-#     # define a function that accepts a threshold and prints sensitivity and specificity
-#     def evaluate_threshold(threshold):
-#         #Sensitivity: When the actual value is positive, how often is the prediction correct?
-#         #Specificity: When the actual value is negative, how often is the prediction correct?print('Sensitivity for ' + str(threshold) + ' :', tpr[thresholds > threshold][-1])
-#         print('Specificity for ' + str(threshold) + ' :', 1 - fpr[thresholds > threshold][-1])
-
-#     # One way of setting threshold
-#     predict_mine = np.where(y_pred_prob > 0.50, 1, 0)
-#     confusion = metrics.confusion_matrix(y_test, predict_mine)
-#     print(confusion)
-
-
-#     return accuracy
-
-
-# # Out[8.1]
-# # In[8.2] Tuning with cross validation score
-# ##########################################
-# # Tuning with cross validation score
-# ##########################################
-# def tuningCV(knn):
-
-#     # search for an optimal value of K for KNN
-#     k_range = list(range(1, 31))
-#     k_scores = []
-#     for k in k_range:
-#         knn = KNeighborsClassifier(n_neighbors=k)
-#         scores = cross_val_score(knn, X, y, cv=10, scoring='accuracy')
-#         k_scores.append(scores.mean())
-#     print(k_scores)
-#     # plot the value of K for KNN (x-axis) versus the cross-validated accuracy (y-axis)
-#     plt.plot(k_range, k_scores)
-#     plt.xlabel('Value of K for KNN')
-#     plt.ylabel('Cross-Validated Accuracy')
-#     plt.show()
-# # Out[8.2]
-# # In[8.3] Tuning with GridSearchCV
-# def tuningGridSerach(knn):
-#     #More efficient parameter tuning using GridSearchCV
-#     # define the parameter values that should be searched
-#     k_range = list(range(1, 31))
-#     print(k_range)
-
-#     # create a parameter grid: map the parameter names to the values that should be searched
-#     param_grid = dict(n_neighbors=k_range)
-#     print(param_grid)
-
-#     # instantiate the grid
-#     grid = GridSearchCV(knn, param_grid, cv=10, scoring='accuracy')
-
-#     # fit the grid with data
-#     grid.fit(X, y)
-
-#     # # view the complete results (list of named tuples)
-#     # grid.grid_scores_
-
-#     # # examine the first tuple
-#     # print(grid.grid_scores_[0].parameters)
-#     # print(grid.grid_scores_[0].cv_validation_scores)
-#     # print(grid.grid_scores_[0].mean_validation_score)
-
-#     # # create a list of the mean scores only
-#     # grid_mean_scores = [result.mean_validation_score for result in grid.grid_scores_]
-#     # print(grid_mean_scores)
-
-#     # plot the results
-#     plt.plot(k_range, grid_mean_scores)
-#     plt.xlabel('Value of K for KNN')
-#     plt.ylabel('Cross-Validated Accuracy')
-#     plt.show()
-
-#     # examine the best model
-#     print('GridSearch best score', grid.best_score_)
-#     print('GridSearch best params', grid.best_params_)
-#     print('GridSearch best estimator', grid.best_estimator_)
-# # Out[8.3]
-# # In[8.4] Tuning with RandomizedSearchCV
-# def tuningRandomizedSearchCV(model, param_dist):
-#     #Searching multiple parameters simultaneously
-#     # n_iter controls the number of searches
-#     rand = RandomizedSearchCV(model, param_dist, cv=10, scoring='accuracy', n_iter=10, random_state=5)
-#     rand.fit(X, y)
-#    # rand.grid_scores_
-
-#     # # examine the best model
-#     # print('Rand. Best Score: ', rand.best_score_)
-#     # print('Rand. Best Params: ', rand.best_params_)
-
-#     # run RandomizedSearchCV 20 times (with n_iter=10) and record the best score
-#     best_scores = []
-#     for _ in range(20):
-#         rand = RandomizedSearchCV(model, param_dist, cv=10, scoring='accuracy', n_iter=10)
-#         rand.fit(X, y)
-#         best_scores.append(round(rand.best_score_, 3))
-#     print(best_scores)
-# # # Out[9.2]
-# # # In[9.3] Decision Tree classifier
-# def treeClassifier():
-#     # Calculating the best parameters
-#     tree = DecisionTreeClassifier()
-#     featuresSize = feature_cols.__len__()
-#     param_dist = {"max_depth": [3, None],
-#               "max_features": randint(1, featuresSize),
-#               "min_samples_split": randint(2, 9),
-#               "min_samples_leaf": randint(1, 9),
-#               "criterion": ["gini", "entropy"]}
-#     tuningRandomizedSearchCV(tree, param_dist)
-
-#     # train a decision tree model on the training set
-#     tree = DecisionTreeClassifier(max_depth=3, min_samples_split=8, max_features=6, criterion='entropy', min_samples_leaf=7)
-#     tree.fit(X_train, y_train)
-
-#     # make class predictions for the testing set
-#     y_pred_class = tree.predict(X_test)
-
-#     print('########### Tree classifier ###############')
-
-#     accuracy_score = evalClassModel(tree, y_test, y_pred_class, True)
-
-#     #Data for final graph
-#     methodDict['Tree clas.'] = accuracy_score * 100
-# # Out[9.3]
-# # In[9.4] Random Forests
-# def randomForest():
-#     # Calculating the best parameters
-#     forest = RandomForestClassifier(n_estimators = 20)
-
-#     featuresSize = feature_cols.__len__()
-#     param_dist = {"max_depth": [3, None],
-#               "max_features": randint(1, featuresSize),
-#               "min_samples_split": randint(2, 9),
-#               "min_samples_leaf": randint(1, 9),
-#               "criterion": ["gini", "entropy"]}
-#     tuningRandomizedSearchCV(forest, param_dist)
-
-#     # Building and fitting my_forest
-#     forest = RandomForestClassifier(max_depth = None, min_samples_leaf=8, min_samples_split=2, n_estimators = 20, random_state = 1)
-#     my_forest = forest.fit(X_train, y_train)
-
-#     # make class predictions for the testing set
-#     y_pred_class = my_forest.predict(X_test)
-
-#     print('########### Random Forests ###############')
-
-#     accuracy_score = evalClassModel(my_forest, y_test, y_pred_class, True)
-
-#     #Data for final graph
-#     methodDict['R. Forest'] = accuracy_score * 100
-# # Out[9.4]
-# # In[9.5] Bagging
-# def bagging():
-#     # Building and fitting
-#     bag = BaggingClassifier(DecisionTreeClassifier(), max_samples=1.0, max_features=1.0, bootstrap_features=False)
-#     bag.fit(X_train, y_train)
-
-#     # make class predictions for the testing set
-#     y_pred_class = bag.predict(X_test)
-
-#     print('########### Bagging ###############')
-
-#     accuracy_score = evalClassModel(bag, y_test, y_pred_class, True)
-
-#     #Data for final graph
-#     methodDict['Bagging'] = accuracy_score * 100
-# # Out[9.5]
-# # In[9.6] Boosting
-# def boosting():
-#     # Building and fitting
-#     clf = DecisionTreeClassifier(criterion='entropy', max_depth=1)
-#     boost = AdaBoostClassifier(base_estimator=clf, n_estimators=500)
-#     boost.fit(X_train, y_train)
-
-#     # make class predictions for the testing set
-#     y_pred_class = boost.predict(X_test)
-
-#     print('########### Boosting ###############')
-
-#     accuracy_score = evalClassModel(boost, y_test, y_pred_class, True)
-
-#     #Data for final graph
-#     methodDict['Boosting'] = accuracy_score * 100
-# # Out[9.6]
-# # In[9.7] Stacking
-# def stacking():
-#     # Building and fitting
-#     clf1 = KNeighborsClassifier(n_neighbors=1)
-#     clf2 = RandomForestClassifier(random_state=1)
-#     clf3 = GaussianNB()
-#     lr = LogisticRegression()
-#     stack = StackingClassifier(classifiers=[clf1, clf2, clf3], meta_classifier=lr)
-#     stack.fit(X_train, y_train)
-
-#     # make class predictions for the testing set
-#     y_pred_class = stack.predict(X_test)
-
-#     print('########### Stacking ###############')
-
-#     accuracy_score = evalClassModel(stack, y_test, y_pred_class, True)
-
-#     #Data for final graph
-#     methodDict['Stacking'] = accuracy_score * 100
-
-# # Out[9.7]
+    # train a decision tree model on the training set
+    tree = DecisionTreeClassifier(
+        max_depth=4, min_samples_split=8, max_features=6, criterion='entropy', min_samples_leaf=7)
+    tree.fit(X_train, y_train)
+
+    # make class predictions for the testing set
+    y_pred_class = tree.predict(X_test)
+
+    print('########### Tree classifier ###############')
+
+    accuracy_score = evalClassModel(tree, y_test, y_pred_class, False)
+
+    # Data for final graph
+    methodDict['Tree clas.'] = accuracy_score * 100
+
+
+treeClassifier()
+# Out[9.3]
+# In[9.4] Random Forests
+
+
+def randomForest():
+    # Calculating the best parameters
+    forest = RandomForestClassifier(n_estimators=20)
+
+    featuresSize = feature_cols.__len__()
+    param_dist = {"max_depth": [3, None],
+                  "max_features": randint(1, featuresSize),
+                  "min_samples_split": randint(2, 9),
+                  "min_samples_leaf": randint(1, 9),
+                  "criterion": ["gini", "entropy"]}
+    tuningRandomizedSearchCV(forest, param_dist)
+
+    # Building and fitting my_forest
+    forest = RandomForestClassifier(
+        max_depth=None, min_samples_leaf=8, min_samples_split=2, n_estimators=20, random_state=1)
+    my_forest = forest.fit(X_train, y_train)
+
+    # make class predictions for the testing set
+    y_pred_class = my_forest.predict(X_test)
+
+    print('########### Random Forests ###############')
+
+    accuracy_score = evalClassModel(my_forest, y_test, y_pred_class, True)
+
+    # Data for final graph
+    methodDict['R. Forest'] = accuracy_score * 100
+
+
+# Out[9.4]
+# In[9.5] Bagging
+randomForest()
+
+
+def bagging():
+    # Building and fitting
+    bag = BaggingClassifier(DecisionTreeClassifier(
+    ), max_samples=1.0, max_features=1.0, bootstrap_features=False)
+    bag.fit(X_train, y_train)
+
+    # make class predictions for the testing set
+    y_pred_class = bag.predict(X_test)
+
+    print('########### Bagging ###############')
+
+    accuracy_score = evalClassModel(bag, y_test, y_pred_class, True)
+
+    # Data for final graph
+    methodDict['Bagging'] = accuracy_score * 100
+
+
+# Out[9.5]
+# In[9.6] Boosting
+bagging()
+
+
+def boosting():
+    # Building and fitting
+    clf = DecisionTreeClassifier(criterion='entropy', max_depth=1)
+    boost = AdaBoostClassifier(base_estimator=clf, n_estimators=500)
+    boost.fit(X_train, y_train)
+
+    # make class predictions for the testing set
+    y_pred_class = boost.predict(X_test)
+
+    print('########### Boosting ###############')
+
+    accuracy_score = evalClassModel(boost, y_test, y_pred_class, True)
+
+    # Data for final graph
+    methodDict['Boosting'] = accuracy_score * 100
+# Out[9.6]
+# In[9.7] Stacking
+
+
+boosting()
+
+
+def stacking():
+    # Building and fitting
+    clf1 = KNeighborsClassifier(n_neighbors=1)
+    clf2 = RandomForestClassifier(random_state=1)
+    clf3 = GaussianNB()
+    lr = LogisticRegression()
+    stack = StackingClassifier(
+        classifiers=[clf1, clf2, clf3], meta_classifier=lr)
+    stack.fit(X_train, y_train)
+
+    # make class predictions for the testing set
+    y_pred_class = stack.predict(X_test)
+
+    print('########### Stacking ###############')
+
+    accuracy_score = evalClassModel(stack, y_test, y_pred_class, True)
+
+    # Data for final graph
+    methodDict['Stacking'] = accuracy_score * 100
+
+# Out[9.7]
+
+
+print(methodDict)
