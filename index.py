@@ -33,9 +33,6 @@ from sklearn import metrics
 from sklearn.metrics import accuracy_score, mean_squared_error, precision_recall_curve, r2_score
 from sklearn.model_selection import cross_val_score
 
-# Neural Network
-from sklearn.neural_network import MLPClassifier
-# from sklearn.grid_search import RandomizedSearchCV
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, train_test_split
 
 # Bagging
@@ -70,8 +67,6 @@ train_df = train_df.drop(['Timestamp'], axis=1)
 train_df = train_df.drop(['Country'], axis=1)
 
 # print_InforData(train_df)
-
-
 # In[3]:  Cleaning NaN
 # Assign default values for each data type
 defaultInt = 0
@@ -198,41 +193,6 @@ hm = sns.heatmap(cm, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={
                  'size': 10}, yticklabels=cols.values, xticklabels=cols.values)
 plt.show()
 
-# Distribiution and density by Age
-plt.figure(figsize=(12, 8))
-sns.distplot(train_df["Age"], bins=24)
-plt.title("Distribuition and density by Age")
-plt.xlabel("Age")
-g = sns.FacetGrid(train_df, col='treatment', size=5)
-g = g.map(sns.distplot, "Age")
-
-# Let see how many people has been treated
-plt.figure(figsize=(12, 8))
-labels = labelDict['label_Gender']
-g = sns.countplot(x="treatment", data=train_df)
-g.set_xticklabels(labels)
-
-plt.title('Total Distribuition by treated or not')
-
-o = labelDict['label_age_range']
-
-g = sns.factorplot(x="age_range", y="treatment", hue="Gender", data=train_df,
-                   kind="bar",  ci=None, size=5, aspect=2, legend_out=True)
-g.set_xticklabels(o)
-
-plt.title('Probability of mental health condition')
-plt.ylabel('Probability x 100')
-plt.xlabel('Age')
-# replace legend labels
-
-new_labels = labelDict['label_Gender']
-for t, l in zip(g._legend.texts, new_labels):
-    t.set_text(l)
-
-# Positioning the legend
-g.fig.subplots_adjust(top=0.9, right=0.8)
-
-plt.show()
 
 o = labelDict['label_family_history']
 g = sns.factorplot(x="family_history", y="treatment", hue="Gender",
@@ -749,6 +709,6 @@ def stacking(flag=False):
     methodDict['Stacking'] = accuracy_score * 100
 
 
-stacking(True)
+stacking()
 # joblib.dump(methodDict, 'saved_var/methodDict')
 # print(methodDict)
